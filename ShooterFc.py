@@ -23,6 +23,8 @@ class Enemy:
         self.speed = speed
         self.health = radius*10
         self.alive = True
+        self.attack_cooldown = 1
+        self.last_attack_time = time.time()
     
     def move(self):
         dx = self.Target.x - self.x
@@ -40,12 +42,33 @@ class Enemy:
         y = self.y + HEIGHT/2
         pygame.draw.circle(win, RED, (x, y), self.radius)
     
+    def checkPlayerCollision(self, user):
+        dx = self.x - user.x
+        dy = self.y - user.y
+        distance = math.sqrt(dx ** 2 + dy ** 2)
+        if distance <= 20:
+            return True
+        return False
+    
+    def canAttack(self):
+        current_time = time.time()
+        time_since_last_attack = current_time - self.last_attack_time
+        return time_since_last_attack >= self.attack_cooldown
+
+    def attack(self, user):
+        if self.canAttack():
+            user.health -= 10
+            if user.health <= 0:
+                user.alive = False
+            self.last_attack_time = time.time()  # Update the last attack time
+
 class Player:
     def __init__(self, x, y, health, speed):
        self.x = x
        self.y = y
        self.health = health
        self.speed = speed
+       self.alive = True
 
 
     def move(self, dx, dy):
@@ -57,8 +80,7 @@ class Player:
         y = self.y + HEIGHT/2 
         pygame.draw.circle(win, LIGHTGREEN, (x, y), 10)
     
-
-class Bullet():
+class Bullet:
     def __init__(self, x, y, dx, dy):
         self.x = x
         self.y = y
@@ -95,11 +117,10 @@ def spawnEnemies(wave, enemies, player):
     while i <= wave:
         x = random.randint(-400, 400)
         y = random.randint(-400, 400)
-        
+        #add check for not spawning in other enemys or the user
         enemy = Enemy()
         enemies.append()
         i += 1
-
 
 def main():
     running = True
@@ -114,6 +135,8 @@ def main():
     enemies.append(enemy)
     while running:
         WIN.fill((0, 0, 0))
+        if not user.alive:
+            running = False
 
         for event in pygame.event.get():  # check events
             if event.type == pygame.QUIT:
@@ -141,7 +164,8 @@ def main():
         user.move(dx, dy)  # Pass the movement vector to the player's move method
         healthm = "HP: {}".format(user.health)
         hp = FONT.render(healthm, 1, WHITE)
-        WIN.blit(hp, 100, 100)
+        WIN.blit(hp, (0, 0))
+
 
         # Update and draw the bullets
         for bullet in bullets:
@@ -157,8 +181,10 @@ def main():
         for enemy in enemies:
             if enemy.alive == False:
                 enemies.remove(enemy)
-
-            enemy.move()
+            if enemy.checkPlayerCollision(user):
+                enemy.attack(user)
+            else:
+                enemy.move()
             enemy.drawEnemy(WIN)
 
         user.drawPlayer(WIN)
