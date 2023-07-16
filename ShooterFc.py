@@ -1,6 +1,7 @@
 import pygame
 import time
 import math
+import random
 pygame.init()
 
 WIDTH, HEIGHT = 800, 800
@@ -88,15 +89,17 @@ class Bullet():
                 return True
 
         return False
-        
-                
-        
 
-def countdown():
-    text_surface = FONT.render('3', False, WHITE)
-    WIN.blit(text_surface, (400,400))
-    pygame.display.update()
-    time.sleep(10)
+def spawnEnemies(wave, enemies, player):
+    i = 0
+    while i <= wave:
+        x = random.randint(-400, 400)
+        y = random.randint(-400, 400)
+        
+        enemy = Enemy()
+        enemies.append()
+        i += 1
+
 
 def main():
     running = True
@@ -135,8 +138,10 @@ def main():
             dx -= 1  # Move left
         if pygame.K_d in keys_pressed:
             dx += 1  # Move right
-
         user.move(dx, dy)  # Pass the movement vector to the player's move method
+        healthm = "HP: {}".format(user.health)
+        hp = FONT.render(healthm, 1, WHITE)
+        WIN.blit(hp, 100, 100)
 
         # Update and draw the bullets
         for bullet in bullets:
@@ -152,6 +157,7 @@ def main():
         for enemy in enemies:
             if enemy.alive == False:
                 enemies.remove(enemy)
+
             enemy.move()
             enemy.drawEnemy(WIN)
 
