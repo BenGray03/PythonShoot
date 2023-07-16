@@ -117,22 +117,34 @@ def spawnEnemies(wave, enemies, player):
     while i <= wave:
         x = random.randint(-400, 400)
         y = random.randint(-400, 400)
-        #add check for not spawning in other enemys or the user
-        enemy = Enemy()
-        enemies.append()
-        i += 1
+        # Add a check to avoid spawning enemies on top of each other or the player
+        overlapping = False
+        for enemy in enemies:
+            dx = x - enemy.x
+            dy = y - enemy.y
+            distance = math.sqrt(dx ** 2 + dy ** 2)
+            if distance <= enemy.radius * 2:  # Adjust the value to define the minimum distance between enemies
+                overlapping = True
+                break
+
+        if not overlapping:
+            enemy = Enemy(x, y, 10, player, 1)  # Pass the required arguments
+            enemies.append(enemy)
+            i += 1
+
 
 def main():
     running = True
     clock = pygame.time.Clock()
     
     user = Player(0, 0, 100, 3)
-    enemy = Enemy(-200, -200, 10, user, 1)
+
     bullets = []  # Store the bullets fired by the player
     enemies = []  #store list of enemies
     keys_pressed = set()  # Track the keys currently being held down
+    wave = 1
 
-    enemies.append(enemy)
+
     while running:
         WIN.fill((0, 0, 0))
         if not user.alive:
@@ -178,14 +190,18 @@ def main():
                 bullets.remove(bullet)
 
         # Update and draw enimies
-        for enemy in enemies:
-            if enemy.alive == False:
-                enemies.remove(enemy)
-            if enemy.checkPlayerCollision(user):
-                enemy.attack(user)
-            else:
-                enemy.move()
-            enemy.drawEnemy(WIN)
+        if len(enemies) >= 1:
+            for enemy in enemies:
+                if enemy.alive == False:
+                    enemies.remove(enemy)
+                if enemy.checkPlayerCollision(user):
+                    enemy.attack(user)
+                else:
+                    enemy.move()
+                enemy.drawEnemy(WIN)
+        else:
+            wave += 1
+            spawnEnemies(wave, enemies, user)
 
         user.drawPlayer(WIN)
 
