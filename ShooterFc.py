@@ -42,14 +42,6 @@ class Enemy:
         y = self.y + HEIGHT/2
         pygame.draw.circle(win, RED, (x, y), self.radius)
     
-    def checkPlayerCollision(self, user):
-        dx = self.x - user.x
-        dy = self.y - user.y
-        distance = math.sqrt(dx ** 2 + dy ** 2)
-        if distance <= 20:
-            return True
-        return False
-    
     def canAttack(self):
         current_time = time.time()
         time_since_last_attack = current_time - self.last_attack_time
@@ -63,13 +55,13 @@ class Enemy:
             self.last_attack_time = time.time()  # Update the last attack time
 
 class Player:
-    def __init__(self, x, y, health, speed):
+    def __init__(self, x, y, health, speed, ):
        self.x = x
        self.y = y
        self.health = health
        self.speed = speed
        self.alive = True
-
+       self.radius = 10
 
     def move(self, dx, dy):
         self.x += dx * self.speed
@@ -78,7 +70,7 @@ class Player:
     def drawPlayer(self, win):
         x = self.x + WIDTH/2
         y = self.y + HEIGHT/2 
-        pygame.draw.circle(win, LIGHTGREEN, (x, y), 10)
+        pygame.draw.circle(win, LIGHTGREEN, (x, y), self.radius)
     
 class Bullet:
     def __init__(self, x, y, dx, dy):
@@ -87,6 +79,7 @@ class Bullet:
         self.dx = dx
         self.dy = dy
         self.speed = 5
+        self.radius = 2
     
     def move(self):
         if self.dx == 0 and self.dy == 0:
@@ -97,21 +90,8 @@ class Bullet:
     def drawBullet(self, win):
         x = self.x + WIDTH / 2
         y = self.y + HEIGHT / 2
-        pygame.draw.circle(win, WHITE, (x, y), 2)
-    
-    def checkHit(self, enemies):
-        for enemy in enemies:
-            dx = self.x - enemy.x
-            dy = self.y - enemy.y
-            distance = math.sqrt(dx ** 2 + dy ** 2)
-            if distance <= (enemy.radius + 2):
-                enemy.health -= 10
-                if enemy.health <= 0:
-                    enemy.alive = False
-                return True
-
-        return False
-
+        pygame.draw.circle(win, WHITE, (x, y), self.radius)
+            
 def spawnEnemies(wave, enemies, player):
     i = 0
     while i <= wave:
@@ -132,13 +112,26 @@ def spawnEnemies(wave, enemies, player):
             enemies.append(enemy)
             i += 1
 
+def checkCollisions(self, other):
+    dx = self.x - other.x
+    dy = self.y - other.y
+    distance = math.sqrt(dx ** 2 + dy ** 2)
+    if distance <= (other.radius + self.radius):
+        return True
+    return False
+
+def display_timer(timer):
+    timer_font = pygame.font.SysFont("comicsans", 36)
+    timer_text = timer_font.render(str(timer), 1, WHITE)
+    WIN.blit(timer_text, (382, 10))
 
 def main():
     running = True
     clock = pygame.time.Clock()
-    
-    user = Player(0, 0, 100, 3)
+    wave_timer = 5  # Countdown timer before each wave
+    timer_start_time = None
 
+    user = Player(0, 0, 100, 3)
     bullets = []  # Store the bullets fired by the player
     enemies = []  #store list of enemies
     keys_pressed = set()  # Track the keys currently being held down
@@ -157,10 +150,36 @@ def main():
                 keys_pressed.add(event.key)  # Add pressed key to the set
                 if event.key == pygame.K_SPACE:
                     # Create a bullet and add it to the bullets list
-                    bullet = Bullet(user.x, user.y, dx, dy)  # Upward direction initially
+                    mouse_pos = pygame.mouse.get_pos()
+                    dx = mouse_pos[0] - (user.x + WIDTH / 2)
+                    dy = mouse_pos[1] - (user.y + HEIGHT / 2)
+                    distance = math.sqrt(dx ** 2 + dy ** 2)
+                    if distance != 0:
+                        dx_normalized = dx / distance
+                        dy_normalized = dy / distance
+                    else:
+                        dx_normalized = 1
+                        dy_normalized = 0
+                    bullet = Bullet(user.x, user.y, dx_normalized, dy_normalized)
                     bullets.append(bullet)
             if event.type == pygame.KEYUP:
                 keys_pressed.remove(event.key)  # Remove released key from the set
+
+        if wave_timer > 0:
+            if timer_start_time is None and len(enemies) == 0:
+                timer_start_time = pygame.time.get_ticks()  # Start the timer
+            elif timer_start_time is not None:
+                current_time = pygame.time.get_ticks()
+                elapsed_time = (current_time - timer_start_time) // 1000  # Convert milliseconds to seconds
+                wave_timer = max(0, 5 - elapsed_time)  # Update the timer value
+                display_timer(wave_timer)
+
+        if len(enemies) == 0:
+            if wave_timer == 0:
+                spawnEnemies(wave, enemies, user)
+                wave += 1
+                wave_timer = 5  # Reset the timer for the next wave
+                timer_start_time = None  # Reset the timer start time
 
         # Check the keys being held down for continuous movement
         dx = 0
@@ -173,17 +192,23 @@ def main():
             dx -= 1  # Move left
         if pygame.K_d in keys_pressed:
             dx += 1  # Move right
-        user.move(dx, dy)  # Pass the movement vector to the player's move method
+        user.move(dx, dy) # Pass the movement vector to the player's move method
+
+        #player health
         healthm = "HP: {}".format(user.health)
         hp = FONT.render(healthm, 1, WHITE)
         WIN.blit(hp, (0, 0))
 
-
         # Update and draw the bullets
         for bullet in bullets:
             bullet.move()
-            if bullet.checkHit(enemies):
-                bullets.remove(bullet)
+            for enemy in enemies:
+                if checkCollisions(bullet, enemy):
+                    enemy.health -= 10
+                    if enemy.health <= 0:
+                        enemy.alive = False
+                    bullets.remove(bullet)
+                    break
             bullet.drawBullet(WIN)
             # Remove the bullet if it goes off-screen
             if bullet.y < -410 or bullet.y > HEIGHT/2 or bullet.x < -410 or bullet.x > WIDTH/2:
@@ -194,14 +219,11 @@ def main():
             for enemy in enemies:
                 if enemy.alive == False:
                     enemies.remove(enemy)
-                if enemy.checkPlayerCollision(user):
+                if checkCollisions(enemy, user):
                     enemy.attack(user)
                 else:
                     enemy.move()
                 enemy.drawEnemy(WIN)
-        else:
-            wave += 1
-            spawnEnemies(wave, enemies, user)
 
         user.drawPlayer(WIN)
 
