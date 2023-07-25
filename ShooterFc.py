@@ -14,6 +14,8 @@ RED = (255, 24, 24)
 LIGHTGREEN = (144, 238, 144)
 WHITE = (255, 255, 255)
 
+objects = []
+
 class Enemy:
     def __init__(self, x, y, radius, Target, speed):
         self.x = x
@@ -55,7 +57,7 @@ class Enemy:
             self.last_attack_time = time.time()  # Update the last attack time
 
 class Player:
-    def __init__(self, x, y, health, speed, ):
+    def __init__(self, x, y, health, speed):
        self.x = x
        self.y = y
        self.health = health
@@ -91,6 +93,53 @@ class Bullet:
         x = self.x + WIDTH / 2
         y = self.y + HEIGHT / 2
         pygame.draw.circle(win, WHITE, (x, y), self.radius)
+
+class Button():
+    def __init__(self, x, y, width, height, button_text='Button', onclick_Function=None, one_press=False):
+        self.x = x
+        self.y = y
+        self.width = width
+        self.height = height
+        self.onclick_Function = onclick_Function
+        self.one_press = one_press
+        self.already_pressed = False
+
+        self.fill_colors = {'normal':'#ffffff',
+                        'hover':'#666666',
+                        'pressed':'#333333'
+                        }
+        
+        self.button_surface = pygame.Surface((self.width, self.height))
+        self.button_rect = pygame.Rect(self.x, self.y, self.width, self.height)
+
+        self.button_surf = FONT.render(button_text, True, (20,20,20))
+
+        objects.append(self)
+    
+    def process(self):
+        mousePos = pygame.mouse.get_pos()
+        self.button_surface.fill(self.fill_colors['normal'])
+        if self.button_rect.collidepoint(mousePos):
+            self.button_surface.fill(self.fill_colors['hover'])
+
+            if pygame.mouse.get_pressed(num_buttons=3)[0]:
+                self.button_surface.fill(self.fill_colors['pressed'])
+
+                if self.one_press:
+                    self.onclick_Function()
+                
+                elif not self.already_pressed:
+                    self.onclick_Function()
+                    self.already_pressed=True
+            
+            else:
+                self.already_pressed = False
+        
+        self.button_surface.blit(self.button_surf, [
+            self.button_rect.width/2 - self.button_surf.get_rect().width/2,
+            self.button_rect.height/2 - self.button_surf.get_rect().height/2,
+        ])
+        WIN.blit(self.button_surface, self.button_rect)
             
 def spawnEnemies(wave, enemies, player):
     i = 0
@@ -108,7 +157,8 @@ def spawnEnemies(wave, enemies, player):
                 break
 
         if not overlapping:
-            enemy = Enemy(x, y, 10, player, 1)  # Pass the required arguments
+            radius = random.randint(5,15)
+            enemy = Enemy(x, y, radius, player, 1)  # Pass the required arguments
             enemies.append(enemy)
             i += 1
 
@@ -174,13 +224,6 @@ def main():
                 wave_timer = max(0, 5 - elapsed_time)  # Update the timer value
                 display_timer(wave_timer)
 
-        if len(enemies) == 0:
-            if wave_timer == 0:
-                spawnEnemies(wave, enemies, user)
-                wave += 1
-                wave_timer = 5  # Reset the timer for the next wave
-                timer_start_time = None  # Reset the timer start time
-
         # Check the keys being held down for continuous movement
         dx = 0
         dy = 0
@@ -224,6 +267,12 @@ def main():
                 else:
                     enemy.move()
                 enemy.drawEnemy(WIN)
+        else:
+            if wave_timer == 0:
+                spawnEnemies(wave, enemies, user)
+                wave += 1
+                wave_timer = 5  # Reset the timer for the next wave
+                timer_start_time = None  # Reset the timer start time
 
         user.drawPlayer(WIN)
 
